@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 모바일 전체화면 설정 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>바이블 마블_by use0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gamja+Flower&family=Black+Han+Sans&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #8D6E63;
+            --board-bg: #FFF8E1;
+            --accent-color: #FFC107;
+            --current-turn-color: #8D6E63;
+            --current-turn-bg: #E0F7FA;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Jua', sans-serif; }
+
+        body {
+            background-color: #FFECB3;
+            background-image: radial-gradient(#fff 10%, transparent 10%);
+            background-size: 20px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 800px;
+            height: 98vh;
+            background-color: white;
+            border-radius: 25px;
+            border: 8px solid var(--current-turn-color);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            position: relative;
+            transition: border-color 0.5s ease;
+            overflow: hidden;
+        }
+
+        #status-bar {
+            height: 50px;
+            background: var(--current-turn-color);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 1.3rem;
+            transition: background-color 0.5s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        #top-message {
+            background-color: var(--current-turn-bg);
+            color: #546E7A;
+            text-align: center;
+            padding: 10px 0;
+            font-family: 'Gamja Flower', cursive;
+            font-size: 1.8rem;
+            line-height: 1.3;
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.8);
+            transition: background-color 0.5s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80px;
+            flex-shrink: 0;
+        }
+
+        #board-wrapper {
+            flex: 1; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 5px 10px;
+            overflow: hidden;
+            background-color: var(--current-turn-bg);
+            transition: background-color 0.5s ease;
+        }
+
+        #board {
+            width: 100%;
+            max-width: 58vh; 
+            aspect-ratio: 1 / 1;
+            background-color: var(--board-bg);
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 3px;
+            border-radius: 15px;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.1);
+            padding: 3px;
+        }
+
+        #mid-controls {
+            background-color: var(--current-turn-bg);
+            padding: 5px 20px;
+            display: flex;
+            justify-content: flex-end; 
+            transition: background-color 0.5s ease;
+            flex-shrink: 0;
+        }
+
+        .rules-btn {
+            background-color: #607D8B;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #455A64;
+            font-family: 'Jua';
+            transition: transform 0.1s;
+        }
+        .rules-btn:active { transform: translateY(3px); box-shadow: none; }
+
+        .tile {
+            background-color: #fff;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #ddd;
+            transition: all 0.3s ease;
+            background-image: url('bible_bg.jpg'); 
+            background-size: 500% 300%;
+            background-repeat: no-repeat;
+        }
+
+        .tile.unowned { filter: grayscale(100%); opacity: 0.9; }
+        .tile.owned { filter: grayscale(0%); opacity: 1; border-width: 4px; z-index: 1; }
+        .tile.special-tile { filter: grayscale(0%); }
+
+        /* 스프라이트 클래스들 */
+        .bg-pentateuch { background-position: 0% 0%; }
+        .bg-history    { background-position: 25% 0%; }
+        .bg-minor      { background-position: 50% 0%; }
+        .bg-major      { background-position: 75% 0%; }
+        .bg-poetry     { background-position: 100% 0%; }
+        .bg-gospels    { background-position: 0% 50%; }
+        .bg-acts       { background-position: 25% 50%; }
+        .bg-revelation { background-position: 50% 50%; }
+        .bg-pauline    { background-position: 75% 50%; }
+        .bg-general    { background-position: 100% 50%; }
+        .bg-start      { background-position: 0% 100%; }
+        .bg-wilderness { background-position: 25% 100%; }
+        .bg-sharing    { background-position: 50% 100%; }
+        .bg-key        { background-position: 75% 100%; }
+        .bg-rest       { background-position: 100% 100%; }
+
+        .tile-name { 
+            position: absolute; top: 7%; left: 50%; transform: translateX(-50%);
+            font-size: 0.65rem; font-weight: bold; color: #3E2723;
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.8); white-space: nowrap; z-index: 2;
+            padding: 1px 4px; border-radius: 4px; background: rgba(255,255,255,0.6);
+        }
+        
+        .tile-price { 
+            position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%);
+            font-size: 0.6rem; color: white; background: rgba(0,0,0,0.6);
+            padding: 1px 5px; border-radius: 10px; z-index: 2;
+            transition: background-color 0.3s;
+        }
+
+        .pot-amount {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 215, 0, 0.9); color: #E65100;
+            padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 3; display: none;
+        }
+
+        .player-token {
+            min-width: 44px; height: 34px; padding: 0 10px;
+            border-radius: 20px; border: 3px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: absolute; z-index: 20;
+            display: flex; justify-content: center; align-items: center;
+            color: white; font-size: 0.9rem;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.3); white-space: nowrap;
+            transform: translate(-50%, -50%); 
+        }
+
+        #center-panel {
+            grid-column: 2 / span 4; grid-row: 2 / span 4;
+            background-color: rgba(255, 253, 231, 0.95);
+            border-radius: 20px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center;
+            box-shadow: inset 0 0 15px rgba(255, 193, 7, 0.2);
+            z-index: 5;
+            border: 4px dashed #FFD54F;
+        }
+
+        .center-title {
+            font-family: 'Black Han Sans', sans-serif;
+            font-size: 2.5rem;
+            line-height: 1.1;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #FF5252, #FFC107, #2196F3);
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 3px 3px 0px rgba(0,0,0,0.1);
+            transform: rotate(-3deg);
+            animation: party 1.5s infinite alternate;
+        }
+        @keyframes party {
+            from { transform: rotate(-3deg) scale(1); }
+            to { transform: rotate(3deg) scale(1.05); }
+        }
+
+        #dice-container { 
+            display: flex; gap: 15px; margin: 5px 0; cursor: pointer; padding: 10px;
+            background: rgba(255,255,255,0.6); border-radius: 20px; transition: transform 0.1s;
+        }
+        #dice-container:active { transform: scale(0.95); }
+
+        .die {
+            width: 50px; height: 50px; background: white;
+            border-radius: 12px; border: 2px solid #eee;
+            box-shadow: 0 5px 0 #ccc, 0 10px 10px rgba(0,0,0,0.1);
+            display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+            padding: 4px; gap: 3px;
+        }
+        .die .dot { width: 9px; height: 9px; background-color: #5D4037; border-radius: 50%; align-self: center; justify-self: center; }
+        .rolling .die { animation: shake 0.3s infinite; }
+
+        #game-log {
+            width: 90%; height: 50px; background: white;
+            border: 2px solid #FFECB3; border-radius: 10px; padding: 8px;
+            overflow-y: auto; font-size: 0.9rem; text-align: left;
+            margin-top: 10px; color: #5D4037;
+        }
+
+        #player-panel {
+            height: 130px; background-color: #FFF3E0;
+            display: flex; overflow-x: auto; flex-shrink: 0; border-top: 4px solid #FFE0B2;
+            position: relative;
+        }
+
+        .player-card {
+            flex: 1; min-width: 100px;
+            border-right: 2px dashed #FFCC80; padding: 10px; color: #5D4037;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0.6; transition: 0.3s; position: relative;
+        }
+        /* 파산한 플레이어 스타일 */
+        .player-card.bankrupt {
+            opacity: 0.3;
+            background-color: #cfd8dc;
+            filter: grayscale(100%);
+        }
+        .player-card.active { 
+            opacity: 1; background: white; transform: scale(1.05); z-index: 10;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            border-radius: 10px 10px 0 0;
+            border: 2px solid var(--accent-color); border-bottom: none;
+        }
+        .player-name { font-size: 1.1rem; margin-bottom: 5px; }
+        .player-money { font-size: 1.2rem; color: #E65100; font-family: 'Gamja Flower'; }
+        .player-level-badge { font-size: 0.8rem; background: #eee; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
+
+        .modal {
+            display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background-color: white; border-radius: 20px;
+            width: 90%; max-width: 450px; text-align: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 0; overflow: hidden; max-height: 80vh; overflow-y: auto;
+        }
+        .modal-header { background-color: #FFB74D; padding: 15px; color: white; font-size: 1.5rem; font-weight: bold; }
+        .modal-body { padding: 25px; }
+        .quiz-badge {
+            display: inline-block; background-color: #E0F7FA; color: #006064;
+            padding: 5px 12px; border-radius: 15px; font-size: 1rem;
+            margin-bottom: 10px; font-weight: bold;
+        }
+        .quiz-text { font-size: 1.4rem; color: #333; line-height: 1.4; margin-bottom: 20px; }
+        
+        .rules-text { font-size: 1rem; text-align: left; line-height: 1.6; color: #444; }
+        .rules-text h4 { color: #E65100; margin-bottom: 5px; margin-top: 15px; }
+
+        .btn { 
+            font-family: 'Jua'; font-size: 1.2rem; border-radius: 12px;
+            padding: 12px; margin: 5px 0; width: 100%; cursor: pointer;
+            border: none; transition: 0.2s;
+        }
+        .btn-yes { background-color: #FF7043; color: white; box-shadow: 0 4px 0 #D84315; }
+        .btn-yes:active { transform: translateY(4px); box-shadow: none; }
+        .btn-quiz { background-color: white; border: 2px solid #FFCC80; color: #5D4037; }
+        .btn-quiz:hover { background-color: #FFF3E0; }
+        .btn-quiz:active { background-color: #FFE0B2; }
+
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        /* 효과들 */
+        .shake-effect { animation: shake 0.5s; }
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+        .confetti { position: absolute; width: 10px; height: 10px; background-color: #f00; top: 50%; left: 50%; opacity: 0; z-index: 1000; pointer-events: none; }
+
+        #setup-screen {
+            background: #8D6E63;
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3Ccircle cx='13' cy='13' r='3'/%3E%3C/g%3E%3C/svg%3E");
+        }
+        .setup-btn {
+            background: #FFCA28; color: #3E2723; border-radius: 15px;
+            font-size: 1.5rem; padding: 15px 40px; margin: 10px;
+            border: none; cursor: pointer; box-shadow: 0 6px 0 #FF6F00;
+        }
+        .setup-btn:active { box-shadow: 0 2px 0 #FF6F00; transform: translateY(4px); }
+        
+        /* 플레이어 설정 입력 그룹 */
+        .player-input-group {
+            background: #FFFDE7;
+            border: 3px solid #FFB74D;
+            border-radius: 10px;
+            margin: 10px auto;
+            padding: 10px;
+            width: 90%;
+            max-width: 350px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .name-input {
+            border: none;
+            background: transparent;
+            font-family: 'Jua'; font-size: 1.2rem;
+            width: 60%;
+            text-align: left;
+            outline: none;
+        }
+        .level-select {
+            width: 40%;
+            padding: 5px;
+            border-radius: 5px;
+            border: 2px solid #FFCC80;
+            font-family: 'Jua';
+            font-size: 1rem;
+            color: #5D4037;
+        }
+
+        .install-guide {
+            margin-top: 30px; font-size: 1rem; color: #FFECB3; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; text-align: left; max-width: 90%;
+        }
+        .install-guide h4 { color: #FFCA28; margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="status-bar">
+            <span>🚀 바이블 마블_by use0</span>
+            <span id="turn-indicator" style="font-size: 1.2rem;">대기 중...</span>
+        </div>
+
+        <div id="top-message">
+            사랑하는 채비 친구들! <br> 이번 설날에는 이거하고 놀자~💖
+        </div>
+
+        <div id="board-wrapper">
+            <div id="board">
+                <div id="center-panel">
+                    <div class="center-title">
+                        채비<br>바이블 마블
+                    </div>
+                    <div id="dice-container" onclick="if(typeof game !== 'undefined' && game) game.rollDice()">
+                        <div class="die" id="die1"></div>
+                        <div class="die" id="die2"></div>
+                    </div>
+                    <div id="game-log">주사위를 굴려주세요!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 규칙 버튼 영역 -->
+        <div id="mid-controls">
+            <button class="rules-btn" onclick="document.getElementById('rules-modal').style.display='flex'">📜 게임 규칙</button>
+        </div>
+
+        <div id="player-panel"></div>
+    </div>
+
+    <div id="setup-screen">
+        <div id="setup-step-1" style="text-align: center;">
+            <h1 style="font-size: 3.5rem; margin-bottom: 10px; color: #FFECB3; text-shadow: 3px 3px 0 #3E2723;">바이블 마블</h1>
+            <p style="font-size: 1.5rem; margin-bottom: 30px; color: #FFCC80;">함께 할 친구들은 몇 명인가요?</p>
+            <div>
+                <button class="setup-btn" onclick="setupNames(2)">2명</button>
+                <button class="setup-btn" onclick="setupNames(3)">3명</button>
+                <button class="setup-btn" onclick="setupNames(4)">4명</button>
+            </div>
+            
+            <div class="install-guide">
+                <h4>📲 홈 화면에 추가하고 앱처럼 즐기세요!</h4>
+                <p><strong>아이폰(Safari):</strong> 하단 '공유' 버튼 → '홈 화면에 추가' 선택</p>
+                <p><strong>안드로이드(Chrome):</strong> 상단 메뉴(⋮) → '앱 설치' 또는 '홈 화면에 추가' 선택</p>
+            </div>
+        </div>
+        <div id="setup-step-2" style="display: none; text-align: center;">
+            <h1 style="color: #FFECB3;">친구들 정보를 입력해줘!</h1>
+            <div id="name-inputs-container"></div>
+            <button class="setup-btn" onclick="startGameWithNames()" style="margin-top: 20px;">출발! 🚌</button>
+        </div>
+    </div>
+
+    <!-- 퀴즈 모달 -->
+    <div id="quiz-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #4FC3F7;">
+                📖 <span id="quiz-category"></span> 퀴즈
+            </div>
+            <div class="modal-body">
+                <div id="quiz-context" class="quiz-badge">상황 설명</div>
+                <p id="quiz-question" class="quiz-text">질문 내용</p>
+                <div id="quiz-options"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 알림 모달 -->
+    <div id="action-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="action-title">알림 🔔</div>
+            <div class="modal-body">
+                <p id="action-msg" class="quiz-text">메시지 내용</p>
+                <button class="btn btn-yes" id="btn-confirm">알겠어요!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 규칙 모달 -->
+    <div id="rules-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #8D6E63;">📜 게임 규칙</div>
+            <div class="modal-body rules-text">
+                <h4>1. 게임 목표 (종료 조건)</h4>
+                <p>
+                    1. <strong>모든 땅 개척:</strong> 모든 땅의 주인이 정해진 후, 누군가 출발점을 통과하면 게임 끝! (가장 부자가 승리)<br>
+                    2. <strong>파산:</strong> 1명 빼고 모두 파산하면 게임 끝! (최후의 1인이 승리)
+                </p>
+                
+                <h4>2. 이동 및 퀴즈</h4>
+                <p>주사위를 굴려 이동합니다. 빈 땅에 도착하면 <strong>내 난이도에 맞는 퀴즈</strong>를 풀고 땅을 살 수 있습니다.</p>
+                
+                <h4>3. 통행료와 강화</h4>
+                <p>다른 친구의 땅에 도착하면 퀴즈 대결! (정답: 통행료만 지불 / 오답: 2배 지불)<br>
+                내 땅에 다시 도착하면? 퀴즈를 맞춰 <strong>통행료를 1.5배</strong> 올릴 수 있습니다!</p>
+                
+                <h4>4. 특수 칸</h4>
+                <p><strong>광야:</strong> 1번 쉽니다. (더블 나오면 탈출!)<br>
+                <strong>나눔:</strong> 돈을 기부하거나, 쌓인 돈을 가져갑니다.<br>
+                <strong>황금열쇠:</strong> 깜짝 미션이나 선물이 기다립니다.</p>
+                
+                <button class="btn btn-yes" onclick="document.getElementById('rules-modal').style.display='none'">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 20;
+        
+        const mapData = [
+            { id: 0, name: "출발", type: 0, price: 0, bgClass: "bg-start" },
+            { id: 1, name: "모세오경", type: 1, price: 150, category: "pentateuch", bgClass: "bg-pentateuch", level: 0 },
+            { id: 2, name: "역사서", type: 1, price: 180, category: "history", bgClass: "bg-history", level: 0 },
+            { id: 3, name: "황금열쇠", type: 2, price: 0, bgClass: "bg-key" },
+            { id: 4, name: "소선지서", type: 1, price: 200, category: "minor_prophets", bgClass: "bg-minor", level: 0 },
+            { id: 5, name: "광야", type: 3, price: 0, bgClass: "bg-wilderness" },
+            
+            { id: 6, name: "대선지서", type: 1, price: 220, category: "major_prophets", bgClass: "bg-major", level: 0 },
+            { id: 7, name: "시가서", type: 1, price: 240, category: "poetry", bgClass: "bg-poetry", level: 0 },
+            { id: 8, name: "황금열쇠", type: 2, price: 0, bgClass: "bg-key" },
+            { id: 9, name: "복음서", type: 1, price: 260, category: "gospels", bgClass: "bg-gospels", level: 0 },
+            
+            { id: 10, name: "나눔", type: 4, price: 0, bgClass: "bg-sharing" },
+            { id: 11, name: "사도행전", type: 1, price: 280, category: "acts", bgClass: "bg-acts", level: 0 },
+            { id: 12, name: "바울서신", type: 1, price: 300, category: "pauline", bgClass: "bg-pauline", level: 0 },
+            { id: 13, name: "황금열쇠", type: 2, price: 0, bgClass: "bg-key" },
+            { id: 14, name: "일반서신", type: 1, price: 320, category: "general", bgClass: "bg-general", level: 0 },
+            
+            { id: 15, name: "안식처", type: 5, price: 0, bgClass: "bg-rest" },
+            { id: 16, name: "계시록", type: 1, price: 350, category: "revelation", bgClass: "bg-revelation", level: 0 },
+            { id: 17, name: "모세오경 II", type: 1, price: 400, category: "pentateuch", bgClass: "bg-pentateuch", level: 0 },
+            { id: 18, name: "황금열쇠", type: 2, price: 0, bgClass: "bg-key" },
+            { id: 19, name: "복음서 II", type: 1, price: 450, category: "gospels", bgClass: "bg-gospels", level: 0 }
+        ];
+
+        // 난이도 하향 조정 + 하(Easy)는 OX 퀴즈로 변경
+        const quizDatabase = {
+            pentateuch: {
+                easy: [
+                    { q: "하나님이 세상을 창조하셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "노아의 방주에 동물들이 탔나요?", a: ["O", "X"], c: 0 },
+                    { q: "모세가 홍해를 갈랐나요?", a: ["O", "X"], c: 0 },
+                    { q: "아담과 하와는 선악과를 먹었나요?", a: ["O", "X"], c: 0 },
+                    { q: "아브라함은 믿음의 조상인가요?", a: ["O", "X"], c: 0 },
+                    { q: "요셉은 형들에게 팔려갔나요?", a: ["O", "X"], c: 0 },
+                    { q: "십계명은 모세가 시내산에서 받았나요?", a: ["O", "X"], c: 0 },
+                    { q: "이스라엘 백성은 광야에서 피자를 먹었나요?", a: ["O", "X"], c: 1 },
+                    { q: "가장 오래 산 사람은 아담인가요?", a: ["O", "X"], c: 1 },
+                    { q: "하나님은 흙으로 사람을 만드셨나요?", a: ["O", "X"], c: 0 }
+                ],
+                medium: [
+                    { q: "하나님이 세상을 만드는데 며칠이 걸렸나요?", a: ["6일", "7일", "40일"], c: 0 },
+                    { q: "모세오경이 아닌 것은?", a: ["여호수아", "창세기", "신명기"], c: 0 },
+                    { q: "아브라함이 이삭을 바치려 했던 산은?", a: ["모리아산", "시내산", "호렙산"], c: 0 },
+                    { q: "이스라엘 백성이 광야에서 먹은 음식은?", a: ["만나와 메추라기", "빵과 물고기", "무화과"], c: 0 },
+                    { q: "야곱의 새 이름은?", a: ["이스라엘", "에돔", "베델"], c: 0 },
+                    { q: "열 가지 재앙 중 첫 번째는?", a: ["물이 피로 변함", "개구리", "이"], c: 0 },
+                    { q: "이스라엘의 12지파는 누구의 아들들인가요?", a: ["야곱", "이삭", "아브라함"], c: 0 },
+                    { q: "모세의 형은 누구인가요?", a: ["아론", "갈렙", "여호수아"], c: 0 },
+                    { q: "요셉의 두 아들 이름은?", a: ["므낫세와 에브라임", "가인과 아벨", "에서와 야곱"], c: 0 },
+                    { q: "성막에서 가장 거룩한 곳은?", a: ["지성소", "성소", "물두멍"], c: 0 }
+                ],
+                hard: [
+                    { q: "희년은 몇 년마다 돌아오나요?", a: ["50년", "7년", "70년"], c: 0 },
+                    { q: "광야에서 뱀에 물린 사람들이 쳐다보고 나은 것은?", a: ["놋뱀", "금송아지", "십자가"], c: 0 },
+                    { q: "신명기의 뜻은?", a: ["계명을 다시 설명하다", "새로운 명령", "신의 명령"], c: 0 },
+                    { q: "아브라함과 하나님 사이의 언약의 징표는?", a: ["할례", "무지개", "지팡이"], c: 0 },
+                    { q: "요셉이 애굽의 총리가 된 나이는?", a: ["30세", "20세", "40세"], c: 0 },
+                    { q: "모세가 가나안 땅을 바라보며 죽은 산은?", a: ["느보산", "호렙산", "에발산"], c: 0 },
+                    { q: "이스라엘 백성의 광야 생활 기간은?", a: ["40년", "30년", "70년"], c: 0 },
+                    { q: "창세기 1장 1절은?", a: ["태초에 하나님이 천지를 창조하시니라", "태초에 말씀이 계시니라", "여호와는 나의 목자시니"], c: 0 },
+                    { q: "대제사장이 일 년에 한 번 지성소에 들어가는 날은?", a: ["대속죄일", "유월절", "오순절"], c: 0 },
+                    { q: "아브라함이 하나님과 언약을 맺을 때 쪼갠 동물 사이로 지나간 것은?", a: ["횃불", "비둘기", "칼"], c: 0 }
+                ]
+            },
+            history: {
+                easy: [
+                    { q: "다윗은 골리앗을 이겼나요?", a: ["O", "X"], c: 0 },
+                    { q: "솔로몬은 지혜의 왕인가요?", a: ["O", "X"], c: 0 },
+                    { q: "삼손은 머리카락이 짧았나요?", a: ["O", "X"], c: 1 },
+                    { q: "여리고 성은 소리를 질러서 무너졌나요?", a: ["O", "X"], c: 0 },
+                    { q: "다윗은 왕이 되었나요?", a: ["O", "X"], c: 0 },
+                    { q: "이스라엘의 첫 번째 왕은 다윗인가요?", a: ["O", "X"], c: 1 },
+                    { q: "룻은 시어머니 나오미를 떠났나요?", a: ["O", "X"], c: 1 },
+                    { q: "엘리야는 까마귀가 주는 음식을 먹었나요?", a: ["O", "X"], c: 0 },
+                    { q: "에스더는 왕비가 되었나요?", a: ["O", "X"], c: 0 },
+                    { q: "성전은 다윗이 지었나요?", a: ["O", "X"], c: 1 }
+                ],
+                medium: [
+                    { q: "여호수아가 멈추게 한 것은?", a: ["해와 달", "강물", "바람"], c: 0 },
+                    { q: "기드온의 용사는 몇 명?", a: ["300명", "3000명", "12명"], c: 0 },
+                    { q: "다윗과 아주 친했던 사울 왕의 아들은?", a: ["요나단", "압살롬", "암논"], c: 0 },
+                    { q: "솔로몬이 하나님께 구한 것은?", a: ["지혜(듣는 마음)", "부귀", "장수"], c: 0 },
+                    { q: "엘리야가 타고 하늘로 올라간 것은?", a: ["불말과 불수레", "구름", "독수리"], c: 0 },
+                    { q: "나아만 장군의 병을 고친 선지자는?", a: ["엘리사", "엘리야", "이사야"], c: 0 },
+                    { q: "무너진 성벽을 다시 쌓은 사람은?", a: ["느헤미야", "에스라", "스룹바벨"], c: 0 },
+                    { q: "에스더가 구한 민족은?", a: ["유다 민족", "애굽 민족", "앗수르 민족"], c: 0 },
+                    { q: "다윗이 법궤를 옮겨올 때 한 행동은?", a: ["춤을 췄다", "울었다", "숨었다"], c: 0 },
+                    { q: "룻이 이삭을 주운 밭의 주인은?", a: ["보아스", "엘리멜렉", "아무개"], c: 0 }
+                ],
+                hard: [
+                    { q: "사사기 시대의 특징을 나타내는 말씀은?", a: ["자기 소견에 옳은 대로 행하였더라", "여호와를 경외하라", "순종이 제사보다 낫다"], c: 0 },
+                    { q: "남유다의 왕 중 종교개혁을 일으킨 왕은?", a: ["요시야", "므낫세", "여호야김"], c: 0 },
+                    { q: "북이스라엘을 멸망시킨 나라는?", a: ["앗수르", "바벨론", "블레셋"], c: 0 },
+                    { q: "남유다를 멸망시킨 나라는?", a: ["바벨론", "앗수르", "애굽"], c: 0 },
+                    { q: "엘리야가 바알 선지자들과 대결한 산은?", a: ["갈멜산", "호렙산", "시온산"], c: 0 },
+                    { q: "다윗 언약이 기록된 성경은?", a: ["사무엘하 7장", "열왕기상 8장", "역대상 17장"], c: 0 },
+                    { q: "학사 에스라가 가르친 것은?", a: ["율법", "건축술", "농사법"], c: 0 },
+                    { q: "히스기야 왕이 생명이 연장된 기간은?", a: ["15년", "7년", "10년"], c: 0 },
+                    { q: "여호수아가 요단강을 건넌 후 세운 돌 개수는?", a: ["12개", "7개", "10개"], c: 0 },
+                    { q: "기드온이 부른 '여호와 샬롬'의 뜻은?", a: ["여호와는 평강이시다", "여호와가 준비하신다", "여호와는 나의 깃발"], c: 0 }
+                ]
+            },
+            minor_prophets: {
+                easy: [
+                    { q: "요나는 큰 물고기 뱃속에 들어갔나요?", a: ["O", "X"], c: 0 },
+                    { q: "요나는 니느웨로 가고 싶어 했나요?", a: ["O", "X"], c: 1 },
+                    { q: "구약 성경의 마지막 책은 말라기인가요?", a: ["O", "X"], c: 0 },
+                    { q: "호세아 선지자는 결혼을 했나요?", a: ["O", "X"], c: 0 },
+                    { q: "미가 선지자는 예수님이 베들레헴에서 태어날 것을 알았나요?", a: ["O", "X"], c: 0 },
+                    { q: "요나는 물고기 뱃속에서 3일 동안 있었나요?", a: ["O", "X"], c: 0 },
+                    { q: "하박국 선지자는 하나님께 질문했나요?", a: ["O", "X"], c: 0 },
+                    { q: "말라기는 십일조에 대해 말했나요?", a: ["O", "X"], c: 0 },
+                    { q: "요엘 선지자는 메뚜기 떼 이야기를 했나요?", a: ["O", "X"], c: 0 },
+                    { q: "구약 성경은 모두 39권인가요?", a: ["O", "X"], c: 0 }
+                ],
+                medium: [
+                    { q: "호세아 선지자의 아내 이름은?", a: ["고멜", "룻", "사라"], c: 0 },
+                    { q: "오직 의인은 믿음으로 말미암아 살리라! 누구의 말인가요?", a: ["하박국", "스바냐", "나훔"], c: 0 },
+                    { q: "정의를 강물같이 흐르게 하라! 외친 선지자는?", a: ["아모스", "호세아", "요엘"], c: 0 },
+                    { q: "나귀를 타고 오시는 왕을 예언한 선지자는?", a: ["스가랴", "말라기", "학개"], c: 0 },
+                    { q: "니느웨의 멸망을 예언한 선지자는?", a: ["나훔", "요나", "미가"], c: 0 },
+                    { q: "여호와의 날을 강조한 선지자는?", a: ["요엘", "오바댜", "나훔"], c: 0 },
+                    { q: "에돔의 멸망을 예언한 책은?", a: ["오바댜", "아모스", "미가"], c: 0 },
+                    { q: "내가 거룩하니 너희도 거룩하라!", a: ["레위기/호세아", "스가랴", "말라기"], c: 0 },
+                    { q: "성전 건축을 다시 시작하게 한 선지자는?", a: ["학개", "요엘", "나훔"], c: 0 },
+                    { q: "엘리야를 보내주겠다고 약속한 책은?", a: ["말라기", "스가랴", "스바냐"], c: 0 }
+                ],
+                hard: [
+                    { q: "스가랴서에 나오는 환상의 개수는?", a: ["8개", "7개", "12개"], c: 0 },
+                    { q: "요엘서의 예언이 성취된 신약의 사건은?", a: ["오순절 성령강림", "예수님 세례", "변화산 사건"], c: 0 },
+                    { q: "하박국 선지자의 질문 주제는?", a: ["하나님의 정의", "사랑", "구원"], c: 0 },
+                    { q: "미가 6장 8절에서 하나님이 원하시는 것은?", a: ["정의, 인자, 겸손", "제사, 예물, 찬양", "금식, 기도, 구제"], c: 0 },
+                    { q: "스바냐서의 핵심 주제는?", a: ["여호와의 날", "성전 건축", "메시아"], c: 0 },
+                    { q: "학개서의 주요 메시지는?", a: ["성전 재건 독려", "율법 준수", "이방인 선교"], c: 0 },
+                    { q: "말라기서에 등장하는 논쟁의 횟수는?", a: ["6번", "3번", "10번"], c: 0 },
+                    { q: "호세아의 자녀 이름이 아닌 것은?", a: ["임마누엘", "로루하마", "로암미"], c: 0 },
+                    { q: "아모스 선지자의 원래 직업은?", a: ["목자요 농부", "제사장", "왕족"], c: 0 },
+                    { q: "요나서의 주제는?", a: ["하나님의 사랑과 구원", "이스라엘의 구원", "심판"], c: 0 }
+                ]
+            },
+            major_prophets: {
+                easy: [
+                    { q: "다니엘은 사자 굴에서 죽었나요?", a: ["O", "X"], c: 1 },
+                    { q: "다니엘의 세 친구는 풀무불에 들어갔나요?", a: ["O", "X"], c: 0 },
+                    { q: "예레미야는 '눈물의 선지자'인가요?", a: ["O", "X"], c: 0 },
+                    { q: "에스겔은 마른 뼈가 살아나는 환상을 보았나요?", a: ["O", "X"], c: 0 },
+                    { q: "이사야는 예수님이 오실 것을 예언했나요?", a: ["O", "X"], c: 0 },
+                    { q: "다니엘은 왕의 음식을 먹었나요?", a: ["O", "X"], c: 1 },
+                    { q: "예레미야애가는 기쁜 노래인가요?", a: ["O", "X"], c: 1 },
+                    { q: "이사야 선지자는 입술에 숯불을 대었나요?", a: ["O", "X"], c: 0 },
+                    { q: "대선지서는 책의 분량이 긴가요?", a: ["O", "X"], c: 0 },
+                    { q: "다니엘은 하루에 세 번 기도했나요?", a: ["O", "X"], c: 0 }
+                ],
+                medium: [
+                    { q: "이사야가 예언한 '임마누엘'의 뜻은?", a: ["하나님이 우리와 함께 계시다", "구원자", "기름 부음 받은 자"], c: 0 },
+                    { q: "새 언약을 예언한 선지자는?", a: ["예레미야", "이사야", "다니엘"], c: 0 },
+                    { q: "에스겔이 본 환상 중 하나님의 보좌를 받치는 생물은?", a: ["네 생물(천사)", "용", "사자"], c: 0 },
+                    { q: "다니엘이 해석한 벽의 글씨 '메네 메네 데겔 우바르신'의 뜻은?", a: ["세어보고 달아보니 부족하다", "왕이 만세수 하옵소서", "하나님이 심판하신다"], c: 0 },
+                    { q: "예루살렘 멸망을 보고 슬퍼하며 쓴 책은?", a: ["예레미야애가", "에스겔", "이사야"], c: 0 },
+                    { q: "이사야 53장에 예언된 메시아의 모습은?", a: ["고난 받는 종", "영광의 왕", "심판주"], c: 0 },
+                    { q: "예레미야가 산 밭의 의미는?", a: ["회복에 대한 소망", "부자가 되기 위해", "농사를 위해"], c: 0 },
+                    { q: "다니엘은 하루에 몇 번 기도했나요?", a: ["3번", "5번", "7번"], c: 0 },
+                    { q: "에스겔 성전 환상에서 성전 문지방에서 나온 물은?", a: ["생명수", "홍수", "바닷물"], c: 0 },
+                    { q: "이사야가 소명을 받을 때 천사가 숯불을 댄 곳은?", a: ["입술", "손", "눈"], c: 0 }
+                ],
+                hard: [
+                    { q: "이사야서는 총 몇 장인가요?", a: ["66장", "50장", "40장"], c: 0 },
+                    { q: "예레미야의 활동 시기는?", a: ["남유다 멸망 전후", "북이스라엘 멸망 때", "포로 귀환 후"], c: 0 },
+                    { q: "에스겔서에 나오는 '여호와 삼마'의 뜻은?", a: ["여호와께서 거기 계시다", "여호와는 나의 깃발", "여호와가 준비하신다"], c: 0 },
+                    { q: "다니엘의 70이레 예언의 주제는?", a: ["메시아와 종말", "이스라엘의 독립", "성전 건축"], c: 0 },
+                    { q: "이사야서의 구조는 성경 66권과 비슷합니다. 2부(40-66장)의 주제는?", a: ["위로와 구원", "심판과 경고", "역사와 족보"], c: 0 },
+                    { q: "예레미야가 멍에를 메고 예언한 이유는?", a: ["바벨론에 항복하라는 뜻", "농사를 지으라는 뜻", "죄의 무거움"], c: 0 },
+                    { q: "그루터기 사상이 나오는 성경은?", a: ["이사야", "예레미야", "에스겔"], c: 0 },
+                    { q: "다니엘서에 나오는 네 짐승 환상은 무엇을 상징하나요?", a: ["세상 제국들", "천사들", "이스라엘 지파"], c: 0 },
+                    { q: "에스겔이 벙어리가 되었다가 입이 열린 때는?", a: ["예루살렘 함락 소식을 들었을 때", "환상을 보았을 때", "두루마리를 먹었을 때"], c: 0 },
+                    { q: "새 언약(New Covenant)의 핵심 내용은?", a: ["법을 마음에 기록함", "돌판에 새김", "제사를 드림"], c: 0 }
+                ]
+            },
+            poetry: {
+                easy: [
+                    { q: "여호와는 나의 목자시니 내게 부족함이 없으리로다?", a: ["O", "X"], c: 0 },
+                    { q: "시편은 노래인가요?", a: ["O", "X"], c: 0 },
+                    { q: "솔로몬은 잠언을 많이 썼나요?", a: ["O", "X"], c: 0 },
+                    { q: "욥은 고난 중에 하나님을 욕했나요?", a: ["O", "X"], c: 1 },
+                    { q: "시편 23편은 다윗이 썼나요?", a: ["O", "X"], c: 0 },
+                    { q: "지혜를 얻는 것이 금을 얻는 것보다 낫나요?", a: ["O", "X"], c: 0 },
+                    { q: "전도서는 '헛되고 헛되다'라고 말하나요?", a: ["O", "X"], c: 0 },
+                    { q: "시편 1편에 복 있는 사람은 죄인의 길에 서나요?", a: ["O", "X"], c: 1 },
+                    { q: "여호와를 경외하는 것이 지혜의 근본인가요?", a: ["O", "X"], c: 0 },
+                    { q: "시편 제일 마지막 편은 100편인가요?", a: ["O", "X"], c: 1 }
+                ],
+                medium: [
+                    { q: "시편 1편에 복 있는 사람은 무엇을 하나요?", a: ["율법을 주야로 묵상", "기도를 많이 함", "헌금을 많이 함"], c: 0 },
+                    { q: "여호와를 경외하는 것이 무엇의 근본인가요?", a: ["지식/지혜", "부", "건강"], c: 0 },
+                    { q: "욥의 세 친구가 아닌 사람은?", a: ["엘리후", "엘리바스", "빌닷"], c: 0 },
+                    { q: "전도서의 결론은?", a: ["하나님을 경외하고 명령을 지킬지어다", "인생을 즐겨라", "공부하라"], c: 0 },
+                    { q: "솔로몬이 쓴 사랑의 노래는?", a: ["아가", "룻기", "에스더"], c: 0 },
+                    { q: "시편 119편의 특징은?", a: ["가장 긴 장(말씀 찬양)", "가장 짧은 장", "저주 시"], c: 0 },
+                    { q: "욥이 고난 후에 받은 복은?", a: ["이전보다 갑절", "똑같이", "절반"], c: 0 },
+                    { q: "잠언 31장에 나오는 여인은?", a: ["현숙한 여인", "지혜로운 여인", "부자 여인"], c: 0 },
+                    { q: "청년의 때에 너의 창조주를...?", a: ["기억하라", "사랑하라", "믿으라"], c: 0 },
+                    { q: "시편 51편은 다윗이 언제 쓴 시인가요?", a: ["밧세바와 범죄 후 회개할 때", "골리앗을 이겼을 때", "왕이 되었을 때"], c: 0 }
+                ],
+                hard: [
+                    { q: "시편은 총 몇 권으로 구성되어 있나요?", a: ["5권", "3권", "1권"], c: 0 },
+                    { q: "메시아 고난 시편으로 알려진 시편은?", a: ["22편", "1편", "150편"], c: 0 },
+                    { q: "지혜문학에 속하지 않는 책은?", a: ["시편", "욥기", "잠언"], c: 0 },
+                    { q: "아가서의 해석 방법 중 하나인 알레고리는 누구의 사랑을 비유하나요?", a: ["그리스도와 교회", "솔로몬과 술람미", "왕과 백성"], c: 0 },
+                    { q: "욥기에서 사탄이 욥을 시험한 이유는?", a: ["까닭 없이 경외하리이까", "죄가 있어서", "믿음이 약해서"], c: 0 },
+                    { q: "전도서의 핵심 단어 '헤벨'의 뜻은?", a: ["헛되다(수증기)", "기쁘다", "슬프다"], c: 0 },
+                    { q: "잠언의 주요 대조 구조는?", a: ["지혜자와 우매자", "부자와 가난한 자", "왕과 신하"], c: 0 },
+                    { q: "모세가 쓴 시편은?", a: ["90편", "100편", "23편"], c: 0 },
+                    { q: "성전에 올라가는 노래는 시편 몇 편부터인가요?", a: ["120편", "1편", "50편"], c: 0 },
+                    { q: "탄식시의 특징은?", a: ["고통 호소 후 신뢰와 찬양", "끝까지 원망", "역사 회고"], c: 0 }
+                ]
+            },
+            gospels: {
+                easy: [
+                    { q: "예수님은 베들레헴에서 태어나셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님은 하나님의 아들이신가요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님은 십자가에서 돌아가시고 부활하셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님의 제자는 10명인가요?", a: ["O", "X"], c: 1 },
+                    { q: "오병이어는 떡 5개와 물고기 2마리인가요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님은 물 위를 걸으셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님은 죄가 있으신가요?", a: ["O", "X"], c: 1 },
+                    { q: "마태복음은 신약 성경의 첫 번째 책인가요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님은 나사렛에서 자라셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "삭개오는 키가 컸나요?", a: ["O", "X"], c: 1 }
+                ],
+                medium: [
+                    { q: "첫 번째 복음서는?", a: ["마태복음", "마가복음", "요한복음"], c: 0 },
+                    { q: "예수님이 첫 기적을 행하신 곳은?", a: ["가나 혼인잔치", "베데스다 연못", "갈릴리 바다"], c: 0 },
+                    { q: "산상수훈이 기록된 복음서는?", a: ["마태복음", "마가복음", "요한복음"], c: 0 },
+                    { q: "선한 사마리아인 비유의 주제는?", a: ["이웃 사랑", "기도", "헌금"], c: 0 },
+                    { q: "잃어버린 아들을 기다리는 아버지 비유는?", a: ["탕자의 비유", "씨 뿌리는 자 비유", "달란트 비유"], c: 0 },
+                    { q: "예수님이 부활 후 베드로에게 물으신 말은?", a: ["네가 나를 사랑하느냐", "왜 배신했느냐", "고기를 잡았느냐"], c: 0 },
+                    { q: "삭개오의 직업은?", a: ["세리장", "어부", "바리새인"], c: 0 },
+                    { q: "예수님의 길을 예비한 사람은?", a: ["세례 요한", "사도 요한", "엘리야"], c: 0 },
+                    { q: "너희는 나를 누구라 하느냐? 라는 질문에 베드로의 대답은?", a: ["주는 그리스도시요 살아계신 하나님의 아들이시니이다", "선지자 중 하나입니다", "엘리야입니다"], c: 0 },
+                    { q: "예수님이 십자가를 지고 가신 길의 이름은?", a: ["비아 돌로로사(고난의 길)", "엠마오", "다메섹"], c: 0 }
+                ],
+                hard: [
+                    { q: "공관복음이 아닌 것은?", a: ["요한복음", "마태복음", "누가복음"], c: 0 },
+                    { q: "마태복음의 수신자와 강조점은?", a: ["유대인, 왕으로 오신 예수", "이방인, 종으로 오신 예수", "헬라인, 인자 예수"], c: 0 },
+                    { q: "요한복음 1장 1절의 '말씀(로고스)'은 누구인가요?", a: ["예수님", "성경책", "천사"], c: 0 },
+                    { q: "예수님의 3대 사역이 아닌 것은?", a: ["건축", "가르침(Teaching)", "전파(Preaching)", "치유(Healing)"], c: 0 },
+                    { q: "변화산 사건 때 예수님과 대화한 두 인물은?", a: ["모세와 엘리야", "아브라함과 다윗", "에녹과 엘리야"], c: 0 },
+                    { q: "겟세마네 기도의 핵심 내용은?", a: ["내 뜻대로 마옵시고 아버지의 뜻대로 하옵소서", "이 잔을 내게서 옮기시옵소서", "저들을 사하여 주옵소서"], c: 0 },
+                    { q: "예수님의 십자가 명패에 쓰인 죄목은?", a: ["유대인의 왕", "성전 모독자", "반란자"], c: 0 },
+                    { q: "엠마오로 가는 제자들에게 예수님이 하신 일은?", a: ["성경을 풀어주심", "떡을 떼어주심", "병을 고쳐주심"], c: 0 },
+                    { q: "요한복음에만 나오는 '에고 에이미'는 무슨 뜻인가요?", a: ["나는 ~이다 (I AM)", "나를 따르라", "회개하라"], c: 0 },
+                    { q: "가상칠언 중 마지막 말씀은?", a: ["아버지 내 영혼을 아버지 손에 부탁하나이다", "다 이루었다", "내가 목마르다"], c: 0 }
+                ]
+            },
+            acts: {
+                easy: [
+                    { q: "예수님이 승천하실 때 성령을 약속하셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "바울은 원래 예수님을 믿는 사람들을 괴롭혔나요?", a: ["O", "X"], c: 0 },
+                    { q: "초대교회 성도들은 물건을 서로 나눠 썼나요?", a: ["O", "X"], c: 0 },
+                    { q: "스데반 집사님은 돌에 맞아 순교했나요?", a: ["O", "X"], c: 0 },
+                    { q: "바울과 실라는 감옥에서 찬양했나요?", a: ["O", "X"], c: 0 },
+                    { q: "오순절에 성령님이 오셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "사도행전은 구약 성경인가요?", a: ["O", "X"], c: 1 },
+                    { q: "베드로는 앉은뱅이를 고쳤나요?", a: ["O", "X"], c: 0 },
+                    { q: "바울은 전도 여행을 다녔나요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님의 증인이 되라고 하셨나요?", a: ["O", "X"], c: 0 }
+                ],
+                medium: [
+                    { q: "사울이 회심한 장소는?", a: ["다메섹 도상", "예루살렘", "안디옥"], c: 0 },
+                    { q: "이방인에게 처음으로 세례를 준 백부장의 이름은?", a: ["고넬료", "빌라도", "가이오"], c: 0 },
+                    { q: "최초로 '그리스도인'이라 불린 곳은?", a: ["안디옥", "예루살렘", "로마"], c: 0 },
+                    { q: "바울의 1차 전도 여행 동역자는?", a: ["바나바", "실라", "디모데"], c: 0 },
+                    { q: "예루살렘 공의회의 주요 안건은?", a: ["이방인의 할례 문제", "성전 건축", "헌금"], c: 0 },
+                    { q: "바울이 로마 시민권을 사용한 이유는?", a: ["복음을 변호하기 위해", "자랑하기 위해", "풀려나기 위해"], c: 0 },
+                    { q: "에베소에서 일어난 소동의 원인은?", a: ["우상 숭배(아데미 여신)", "지진", "기근"], c: 0 },
+                    { q: "바울이 로마로 가는 배에서 만난 풍랑 이름은?", a: ["유라굴로", "태풍", "허리케인"], c: 0 },
+                    { q: "자주 장사 루디아를 만난 곳은?", a: ["빌립보", "데살로니가", "고린도"], c: 0 },
+                    { q: "사도행전 1장 8절의 핵심 단어는?", a: ["증인", "왕", "제사장"], c: 0 }
+                ],
+                hard: [
+                    { q: "사도행전은 누구에게 보낸 글인가요?", a: ["데오빌로", "가이오", "디모데"], c: 0 },
+                    { q: "오순절 성령 강림 때 제자들이 한 말은?", a: ["방언(난 곳 방언)", "예언", "통역"], c: 0 },
+                    { q: "아나니아와 삽비라가 죽은 이유는?", a: ["성령을 속여서", "헌금을 안 해서", "예배를 빠져서"], c: 0 },
+                    { q: "스데반의 설교 내용은?", a: ["이스라엘 역사와 예수 그리스도", "율법 준수", "성전 건축"], c: 0 },
+                    { q: "빌립이 전도한 에디오피아 내시가 읽던 성경은?", a: ["이사야", "시편", "모세오경"], c: 0 },
+                    { q: "아덴(아테네)에서 바울이 설교한 장소는?", a: ["아레오바고", "두란노 서원", "회당"], c: 0 },
+                    { q: "바울이 3차 전도 여행 중 에베소에서 가르친 곳은?", a: ["두란노 서원", "회당", "강가"], c: 0 },
+                    { q: "바울이 예루살렘에서 체포되어 호송된 곳은?", a: ["가이사랴", "로마", "안디옥"], c: 0 },
+                    { q: "사도행전 28장의 결말은?", a: ["바울이 로마에서 담대히 복음을 전함", "바울의 순교", "예루살렘 복귀"], c: 0 },
+                    { q: "바울의 전도 여행은 총 몇 차례인가요?", a: ["3차 (로마행 포함 4차)", "2차", "5차"], c: 0 }
+                ]
+            },
+            pauline: {
+                easy: [
+                    { q: "바울은 편지를 많이 썼나요?", a: ["O", "X"], c: 0 },
+                    { q: "믿음, 소망, 사랑 중에 제일은 사랑인가요?", a: ["O", "X"], c: 0 },
+                    { q: "성령의 열매는 9가지인가요?", a: ["O", "X"], c: 0 },
+                    { q: "항상 기뻐하라고 하셨나요?", a: ["O", "X"], c: 0 },
+                    { q: "죄의 삯은 사망인가요?", a: ["O", "X"], c: 0 },
+                    { q: "구원은 돈으로 살 수 있나요?", a: ["O", "X"], c: 1 },
+                    { q: "자녀들아 주 안에서 부모에게 순종하라고 했나요?", a: ["O", "X"], c: 0 },
+                    { q: "하나님의 전신갑주를 입으라고 했나요?", a: ["O", "X"], c: 0 },
+                    { q: "우리는 그리스도 안에서 새로운 피조물인가요?", a: ["O", "X"], c: 0 },
+                    { q: "로마서도 바울이 썼나요?", a: ["O", "X"], c: 0 }
+                ],
+                medium: [
+                    { q: "로마서의 주제인 '이신칭의'의 뜻은?", a: ["믿음으로 의롭다 하심을 얻음", "행함으로 구원", "율법 준수"], c: 0 },
+                    { q: "옥중서신이 아닌 것은?", a: ["로마서", "에베소서", "빌립보서"], c: 0 },
+                    { q: "교회의 머리는 누구인가요?", a: ["예수 그리스도", "목사님", "장로님"], c: 0 },
+                    { q: "하나님의 전신갑주 중 머리에 쓰는 것은?", a: ["구원의 투구", "의의 흉배", "믿음의 방패"], c: 0 },
+                    { q: "갈라디아서에서 경계한 것은?", a: ["다른 복음", "우상 숭배", "음란"], c: 0 },
+                    { q: "부활장이라 불리는 성경은?", a: ["고린도전서 15장", "로마서 12장", "데살로니가전서 4장"], c: 0 },
+                    { q: "빌레몬서의 주인공인 도망친 노예 이름은?", a: ["오네시모", "두기고", "에바브로디도"], c: 0 },
+                    { q: "목회서신에 해당하는 책은?", a: ["디모데전후서, 디도서", "로마서, 갈라디아서", "에베소서, 빌립보서"], c: 0 },
+                    { q: "예수님의 겸손을 본받으라고 한 책은?", a: ["빌립보서", "골로새서", "데살로니가전서"], c: 0 },
+                    { q: "데살로니가전서의 주요 주제는?", a: ["예수님의 재림", "구제", "선교"], c: 0 }
+                ],
+                hard: [
+                    { q: "모든 사람이 죄를 범하였으매 하나님의 영광에 이르지 못하더니... 어디 말씀?", a: ["로마서 3장 23절", "로마서 6장 23절", "요한복음 3장 16절"], c: 0 },
+                    { q: "고린도 교회의 분파가 아닌 것은?", a: ["모세파", "바울파", "아볼로파"], c: 0 },
+                    { q: "옛 사람을 벗어버리고 새 사람을 입으라... 어느 책?", a: ["에베소서/골로새서", "로마서", "빌립보서"], c: 0 },
+                    { q: "멜기세덱의 반차를 따르는 대제사장 예수님을 설명한 책은?", a: ["히브리서(저자 미상이지만 바울 추정)", "로마서", "갈라디아서"], c: 0 },
+                    { q: "그리스도의 비밀, 교회의 비밀을 말한 책은?", a: ["에베소서", "빌립보서", "데살로니가후서"], c: 0 },
+                    { q: "후메내오와 알렉산더는 어떤 사람인가요?", a: ["믿음에서 파선한 자", "바울의 동역자", "로마의 관리"], c: 0 },
+                    { q: "유대주의 율법주의자들을 '개들'이라고 표현한 책은?", a: ["빌립보서", "갈라디아서", "고린도후서"], c: 0 },
+                    { q: "골로새서의 주제는?", a: ["그리스도의 탁월성", "믿음", "사랑"], c: 0 },
+                    { q: "바울이 '나의 나 된 것은 하나님의 은혜로라' 고백한 곳은?", a: ["고린도전서 15장", "갈라디아서 2장", "디모데전서 1장"], c: 0 },
+                    { q: "바울이 마지막으로 쓴 서신으로 추정되는 책은?", a: ["디모데후서", "디도서", "빌레몬서"], c: 0 }
+                ]
+            },
+            general: {
+                easy: [
+                    { q: "하나님은 사랑이신가요?", a: ["O", "X"], c: 0 },
+                    { q: "믿음이 없어도 하나님을 기쁘시게 할 수 있나요?", a: ["O", "X"], c: 1 },
+                    { q: "행함이 없는 믿음은 죽은 것인가요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님의 동생 야고보가 쓴 책이 있나요?", a: ["O", "X"], c: 0 },
+                    { q: "우리는 왕 같은 제사장인가요?", a: ["O", "X"], c: 0 },
+                    { q: "사랑하는 자여 네 영혼이 잘됨 같이... 라는 말씀이 있나요?", a: ["O", "X"], c: 0 },
+                    { q: "히브리서 11장은 믿음장인가요?", a: ["O", "X"], c: 0 },
+                    { q: "혀(말)를 조심해야 하나요?", a: ["O", "X"], c: 0 },
+                    { q: "하나님께 나아가는 자는 그가 계신 것을 믿어야 하나요?", a: ["O", "X"], c: 0 },
+                    { q: "일반서신은 바울이 쓴 것인가요?", a: ["O", "X"], c: 1 }
+                ],
+                medium: [
+                    { q: "야고보서에서 말하는 '경건'은?", a: ["고아와 과부를 돌보고 자기를 지키는 것", "기도 많이 하는 것", "성경 많이 읽는 것"], c: 0 },
+                    { q: "베드로전서의 주제는?", a: ["고난 중의 소망", "부자 되는 법", "건강 비결"], c: 0 },
+                    { q: "적그리스도에 대해 경고한 책은?", a: ["요한일서", "야고보서", "히브리서"], c: 0 },
+                    { q: "천사장 미가엘과 모세의 시체 논쟁이 나오는 책은?", a: ["유다서", "베드로후서", "요한삼서"], c: 0 },
+                    { q: "택하심을 받은 부녀와 그의 자녀에게 쓴 편지는?", a: ["요한이서", "요한일서", "요한삼서"], c: 0 },
+                    { q: "가이오 장로에게 보낸 편지는?", a: ["요한삼서", "요한이서", "베드로전서"], c: 0 },
+                    { q: "히브리서가 예수님을 누구보다 뛰어나다고 비교하지 않는 대상은?", a: ["다윗", "천사", "모세", "아론"], c: 0 },
+                    { q: "엘리야는 우리와 성정이 같은 사람이로되... 기도의 능력을 강조한 책은?", a: ["야고보서", "베드로전서", "유다서"], c: 0 },
+                    { q: "신의 성품에 참여하는 자가 되라고 한 책은?", a: ["베드로후서", "요한일서", "야고보서"], c: 0 },
+                    { q: "노아의 홍수 심판을 예로 들어 심판을 경고한 책은?", a: ["베드로후서", "야고보서", "요한일서"], c: 0 }
+                ],
+                hard: [
+                    { q: "히브리서 11장의 믿음의 영웅이 아닌 사람은?", a: ["솔로몬", "아벨", "에녹", "아브라함"], c: 0 },
+                    { q: "베드로전서가 기록된 장소 '바벨론'은 어디를 상징하나요?", a: ["로마", "애굽", "예루살렘"], c: 0 },
+                    { q: "영지주의(Gnosticism) 이단을 반박하는 책은?", a: ["요한일서", "야고보서", "히브리서"], c: 0 },
+                    { q: "유다서와 내용이 매우 비슷한 책은?", a: ["베드로후서", "베드로전서", "야고보서"], c: 0 },
+                    { q: "히브리서의 수신자는?", a: ["박해받는 유대인 그리스도인", "이방인", "로마인"], c: 0 },
+                    { q: "산 돌(Living Stone)이신 예수님을 언급한 책은?", a: ["베드로전서", "야고보서", "요한일서"], c: 0 },
+                    { q: "죄를 덮는 것은 무엇인가요? (베드로전서)", a: ["사랑", "돈", "지식"], c: 0 },
+                    { q: "야고보서가 인용한 구약 인물 중 기생의 이름은?", a: ["라합", "룻", "다말"], c: 0 },
+                    { q: "요한일서의 3가지 시험(세상에 있는 것)이 아닌 것은?", a: ["이타적인 마음", "육신의 정욕", "안목의 정욕", "이생의 자랑"], c: 0 },
+                    { q: "천사들보다 잠깐 동안 못하게 하심을 입은 자는?", a: ["예수님", "사람", "선지자"], c: 0 }
+                ]
+            },
+            revelation: {
+                easy: [
+                    { q: "요한계시록은 성경의 마지막 책인가요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님은 다시 오시나요?", a: ["O", "X"], c: 0 },
+                    { q: "천국에는 눈물과 슬픔이 있나요?", a: ["O", "X"], c: 1 },
+                    { q: "예수님은 알파와 오메가이신가요?", a: ["O", "X"], c: 0 },
+                    { q: "사도 요한이 요한계시록을 썼나요?", a: ["O", "X"], c: 0 },
+                    { q: "생명수 강가에 생명나무가 있나요?", a: ["O", "X"], c: 0 },
+                    { q: "우리는 천국에 갈 수 있나요?", a: ["O", "X"], c: 0 },
+                    { q: "예수님은 구름 타고 오시나요?", a: ["O", "X"], c: 0 },
+                    { q: "마지막 때에 짐승의 표를 받으면 되나요?", a: ["O", "X"], c: 1 },
+                    { q: "'아멘 주 예수여 오시옵소서'를 '마라나타'라고 하나요?", a: ["O", "X"], c: 0 }
+                ],
+                medium: [
+                    { q: "아시아의 일곱 교회가 아닌 곳은?", a: ["고린도", "에베소", "서머나"], c: 0 },
+                    { q: "첫사랑을 잃어버린 교회는?", a: ["에베소 교회", "라오디게아 교회", "빌라델비아 교회"], c: 0 },
+                    { q: "차지도 덥지도 않아 토해내겠다고 한 교회는?", a: ["라오디게아 교회", "사데 교회", "버가모 교회"], c: 0 },
+                    { q: "죽도록 충성하라 그리하면 생명의 관을 주리라!", a: ["서머나 교회", "두아디라 교회", "에베소 교회"], c: 0 },
+                    { q: "새 예루살렘 성의 문은 몇 개인가요?", a: ["12개", "4개", "100개"], c: 0 },
+                    { q: "구원받은 성도의 수, 십사만 사천의 의미는?", a: ["상징적인 완전수(구원받은 모든 백성)", "실제 숫자", "유대인만"], c: 0 },
+                    { q: "어린 양의 혼인 잔치에서 신부가 입을 옷은?", a: ["세마포 옷(성도들의 옳은 행실)", "화려한 드레스", "가죽 옷"], c: 0 },
+                    { q: "두루마리의 인을 떼기에 합당한 분은?", a: ["어린 양(예수님)", "천사", "장로"], c: 0 },
+                    { q: "하늘의 전쟁에서 용(사탄)과 싸운 천사장은?", a: ["미가엘", "가브리엘", "라파엘"], c: 0 },
+                    { q: "거룩한 성 새 예루살렘은 어디서 내려오나요?", a: ["하늘(하나님께로부터)", "땅에서 솟아남", "바다에서"], c: 0 }
+                ],
+                hard: [
+                    { q: "네 생물(천사)의 모양이 아닌 것은?", a: ["뱀", "사자", "송아지", "사람", "독수리"], c: 0 },
+                    { q: "일곱 인, 일곱 나팔, 일곱 대접 재앙의 순서는?", a: ["인 -> 나팔 -> 대접", "나팔 -> 인 -> 대접", "대접 -> 나팔 -> 인"], c: 0 },
+                    { q: "아마겟돈 전쟁은 몇 번째 대접 재앙 때 일어나나요?", a: ["여섯 번째", "일곱 번째", "첫 번째"], c: 0 },
+                    { q: "천년왕국에 대한 설명이 나오는 장은?", a: ["20장", "1장", "10장"], c: 0 },
+                    { q: "두 증인이 죽임 당한 후 며칠 반 만에 살아나나요?", a: ["삼일 반", "칠일", "사십일"], c: 0 },
+                    { q: "큰 음녀가 앉은 짐승의 특징은?", a: ["일곱 머리와 열 뿔", "두 뿔 가진 양", "용의 꼬리"], c: 0 },
+                    { q: "새 예루살렘 성의 기초석은 몇 개인가요?", a: ["12개", "7개", "24개"], c: 0 },
+                    { q: "24 장로들이 보좌 앞에서 던진 것은?", a: ["금관", "옷", "악기"], c: 0 },
+                    { q: "요한계시록 22장 18-19절의 경고는?", a: ["말씀을 가감하지 말라", "전도하지 말라", "기도하지 말라"], c: 0 },
+                    { q: "일곱 별은 무엇을 상징하나요?", a: ["일곱 교회의 사자(천사/지도자)", "일곱 교회", "일곱 영"], c: 0 }
+                ]
+            }
+        };
+
+        const colors = ['#FF5252', '#448AFF', '#69F0AE', '#E040FB'];
+        const bgColors = ['#FFEBEE', '#E3F2FD', '#E8F5E9', '#F3E5F5']; 
+        
+        const getTollColor = (level) => {
+            const levels = ['#9E9E9E', '#29B6F6', '#66BB6A', '#AB47BC', '#FFEB3B', '#212121'];
+            return levels[Math.min(level, 5)];
+        };
+
+        class Game {
+            constructor(playerNames, difficulties) {
+                this.players = [];
+                this.currentPlayerIndex = 0;
+                this.tiles = [];
+                this.mapState = JSON.parse(JSON.stringify(mapData));
+                this.isProcessing = false;
+                this.lastDiceDouble = false;
+                this.audioCtx = null;
+                this.allLandsOwned = false; 
+                
+                // usedQuestions: category -> difficulty -> Set
+                this.usedQuestions = {};
+                for (let cat in quizDatabase) {
+                    this.usedQuestions[cat] = {
+                        easy: new Set(),
+                        medium: new Set(),
+                        hard: new Set()
+                    };
+                }
+
+                playerNames.forEach((name, i) => {
+                    this.players.push({
+                        id: i,
+                        name: name,
+                        difficulty: difficulties[i], // 난이도 저장
+                        money: 2000, 
+                        pos: 0,
+                        color: colors[i],
+                        bgColor: bgColors[i],
+                        skipTurn: 0,
+                        isBankrupt: false,
+                        properties: []
+                    });
+                });
+            }
+
+            initAudio() {
+                if (!this.audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioCtx = new AudioContext();
+                }
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+            }
+
+            // 정답 소리: 딩동뎅 (C5, E5, G5)
+            playCorrectSound() {
+                this.initAudio();
+                const now = this.audioCtx.currentTime;
+                const tones = [523.25, 659.25, 783.99]; 
+                
+                tones.forEach((freq, idx) => {
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.2);
+                    gain.gain.setValueAtTime(0.1, now + idx * 0.2);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.2 + 0.6);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(now + idx * 0.2);
+                    osc.stop(now + idx * 0.2 + 0.6);
+                });
+            }
+
+            // 오답 소리: 땡 (낮은 톱니파 + 감쇠)
+            playWrongSound() {
+                this.initAudio();
+                const now = this.audioCtx.currentTime;
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now); 
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3); 
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playRattleSound() {
+                this.initAudio();
+                const now = this.audioCtx.currentTime;
+                for(let i=0; i<4; i++) {
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    const t = now + (Math.random() * 0.05); 
+                    osc.frequency.value = 800 + Math.random() * 1000;
+                    osc.type = 'triangle';
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05); 
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.05);
+                }
+            }
+
+            playStepSound() {
+                this.initAudio();
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(500, this.audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(800, this.audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + 0.15);
+            }
+
+            triggerShake() {
+                const container = document.getElementById('game-container');
+                container.classList.remove('shake-effect'); 
+                void container.offsetWidth; 
+                container.classList.add('shake-effect');
+            }
+
+            triggerConfetti() {
+                const colors = ['#f44336', '#2196F3', '#FFEB3B', '#4CAF50', '#E91E63'];
+                for(let i=0; i<30; i++) {
+                    const conf = document.createElement('div');
+                    conf.className = 'confetti';
+                    conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    conf.style.left = '50%';
+                    conf.style.top = '50%';
+                    document.body.appendChild(conf);
+                    const angle = Math.random() * Math.PI * 2;
+                    const velocity = 50 + Math.random() * 100;
+                    const tx = Math.cos(angle) * velocity;
+                    const ty = Math.sin(angle) * velocity;
+                    conf.animate([
+                        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+                        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+                    ], {
+                        duration: 800 + Math.random() * 400,
+                        easing: 'cubic-bezier(0, .9, .57, 1)',
+                    }).onfinish = () => conf.remove();
+                }
+            }
+
+            initBoard() {
+                const boardEl = document.getElementById('board');
+                const existingTiles = document.querySelectorAll('.tile');
+                existingTiles.forEach(t => t.remove());
+
+                const positions = [
+                    {r:1, c:1}, {r:1, c:2}, {r:1, c:3}, {r:1, c:4}, {r:1, c:5}, {r:1, c:6},
+                    {r:2, c:6}, {r:3, c:6}, {r:4, c:6}, {r:5, c:6},
+                    {r:6, c:6}, {r:6, c:5}, {r:6, c:4}, {r:6, c:3}, {r:6, c:2}, {r:6, c:1},
+                    {r:5, c:1}, {r:4, c:1}, {r:3, c:1}, {r:2, c:1}
+                ];
+
+                this.mapState.forEach((data, index) => {
+                    const el = document.createElement('div');
+                    let baseClass = `tile ${index % 5 === 0 ? 'corner' : ''} ${data.bgClass}`;
+                    if (data.type === 1) baseClass += ' unowned';
+                    else baseClass += ' special-tile';
+
+                    el.className = baseClass;
+                    el.style.gridRow = positions[index].r;
+                    el.style.gridColumn = positions[index].c;
+                    el.id = `tile-${index}`;
+                    
+                    let content = `<div class="tile-name">${data.name}</div>`;
+                    if (data.type === 1) content += `<div class="tile-price">${data.price}</div>`; 
+                    if (data.type === 4) content += `<div class="pot-amount">0</div>`;
+                    content += `<div class="tile-owner"></div>`;
+                    
+                    el.innerHTML = content;
+                    boardEl.appendChild(el);
+                    this.tiles.push(el);
+                    
+                    if (data.type === 1) {
+                        const priceEl = el.querySelector('.tile-price');
+                        priceEl.style.backgroundColor = getTollColor(0);
+                    }
+                });
+
+                this.createTokens();
+                this.drawDiceFaces(1, 1);
+                this.updateThemeColor();
+                this.updatePlayerPanel();
+                this.log("준비 완료! 친구들아 모여라~ 🎉");
+            }
+
+            createTokens() {
+                document.querySelectorAll('.player-token').forEach(el => el.remove());
+                const boardEl = document.getElementById('board');
+                this.players.forEach((p, idx) => {
+                    const token = document.createElement('div');
+                    token.id = `token-${p.id}`;
+                    token.className = 'player-token';
+                    token.style.backgroundColor = p.color;
+                    token.innerHTML = `<span class="token-name">${p.name}</span>`;
+                    this.updateTokenPosition(token, 0, idx);
+                    boardEl.appendChild(token);
+                });
+            }
+
+            updateTokenPosition(tokenEl, posIndex, playerIdx) {
+                const tile = document.getElementById(`tile-${posIndex}`);
+                if (!tile) return;
+                const offsetX = (playerIdx % 2) * 8 - 4; 
+                const offsetY = Math.floor(playerIdx / 2) * 8 - 4;
+                const top = tile.offsetTop + (tile.offsetHeight / 2) + offsetY;
+                const left = tile.offsetLeft + (tile.offsetWidth / 2) + offsetX;
+                tokenEl.style.top = `${top}px`;
+                tokenEl.style.left = `${left}px`;
+            }
+
+            updateThemeColor() {
+                const currentPlayer = this.players[this.currentPlayerIndex];
+                document.documentElement.style.setProperty('--current-turn-color', currentPlayer.color);
+                document.documentElement.style.setProperty('--current-turn-bg', currentPlayer.bgColor);
+            }
+
+            updatePlayerPanel() {
+                const panel = document.getElementById('player-panel');
+                panel.innerHTML = '';
+                this.players.forEach((p, idx) => {
+                    const card = document.createElement('div');
+                    let classes = `player-card`;
+                    if (p.isBankrupt) classes += ' bankrupt';
+                    else if (idx === this.currentPlayerIndex) classes += ' active';
+                    
+                    card.className = classes;
+                    card.style.borderTopColor = p.color;
+                    
+                    let moneyText = p.isBankrupt ? "파산" : `${p.money} 달란트`;
+                    let levelText = p.difficulty === 'easy' ? '하' : (p.difficulty === 'medium' ? '중' : '상');
+                    
+                    card.innerHTML = `
+                        <div class="player-name" style="color:${p.color}">${p.name}</div>
+                        <div class="player-money">${moneyText}</div>
+                        <div class="player-level-badge">난이도: ${levelText}</div>
+                        <div style="font-size:0.8rem">땅: ${p.properties.length}곳</div>
+                    `;
+                    panel.appendChild(card);
+                });
+                
+                const currentPlayer = this.players[this.currentPlayerIndex];
+                const msg = this.lastDiceDouble 
+                    ? `${currentPlayer.name} 친구 차례! (더블!! 🎲)` 
+                    : `${currentPlayer.name} 친구 차례!`;
+                
+                const ind = document.getElementById('turn-indicator');
+                ind.innerText = msg;
+                ind.style.color = "white";
+            }
+
+            log(msg) {
+                const logEl = document.getElementById('game-log');
+                logEl.innerHTML = `<div>${msg}</div>`;
+            }
+
+            drawDiceFaces(val1, val2) {
+                const getDots = (num) => {
+                    let dots = '';
+                    const pos = {
+                        1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9]
+                    };
+                    for(let i=1; i<=9; i++) {
+                        if (pos[num].includes(i)) dots += `<div class="dot" style="grid-area: ${Math.ceil(i/3)} / ${((i-1)%3)+1}"></div>`;
+                        else dots += `<div></div>`;
+                    }
+                    return dots;
+                };
+                document.getElementById('die1').innerHTML = getDots(val1);
+                document.getElementById('die2').innerHTML = getDots(val2);
+            }
+
+            async rollDice() {
+                if (this.isProcessing) return;
+                this.isProcessing = true;
+                this.initAudio();
+
+                const diceContainer = document.getElementById('dice-container');
+                diceContainer.classList.add('rolling');
+                
+                let d1=1, d2=1;
+                for(let i=0; i<12; i++) {
+                    d1 = Math.floor(Math.random() * 6) + 1;
+                    d2 = Math.floor(Math.random() * 6) + 1;
+                    this.drawDiceFaces(d1, d2);
+                    if(i % 3 === 0) this.playRattleSound(); 
+                    await new Promise(r => setTimeout(r, 80));
+                }
+                
+                diceContainer.classList.remove('rolling');
+                this.lastDiceDouble = (d1 === d2);
+                const total = d1 + d2;
+
+                const player = this.players[this.currentPlayerIndex];
+                if (player.skipTurn > 0) {
+                    if (this.lastDiceDouble) {
+                        player.skipTurn = 0;
+                        this.log(`✨ 더블! ${player.name} 친구가 광야를 탈출했어!`);
+                        await this.movePlayer(player, total);
+                        return; 
+                    } else {
+                        player.skipTurn--;
+                        this.log(`${player.name} 친구는 쉬는 중... (${player.skipTurn}번 남음)`);
+                        this.lastDiceDouble = false;
+                        this.checkNextTurn();
+                        return;
+                    }
+                }
+
+                this.log(`${player.name}: ${total}칸 이동! (${d1}, ${d2})`);
+                await this.movePlayer(player, total);
+            }
+
+            async movePlayer(player, steps) {
+                const tokenEl = document.getElementById(`token-${player.id}`);
+
+                for (let i = 0; i < steps; i++) {
+                    player.pos = (player.pos + 1) % BOARD_SIZE;
+                    if (player.pos === 0) {
+                        player.money += 500; 
+                        this.log("출발점 통과! 용돈 +500 달란트 💰");
+                        
+                        if (this.allLandsOwned) {
+                            this.endGame();
+                            return; 
+                        }
+                    }
+                    this.updateTokenPosition(tokenEl, player.pos, player.id);
+                    this.playStepSound();
+                    await new Promise(r => setTimeout(r, 300));
+                }
+                this.handleTile(player);
+            }
+
+            handleTile(player) {
+                const tileIdx = player.pos;
+                const tileData = this.mapState[tileIdx];
+
+                if (tileData.type === 1) {
+                    if (tileData.owner === undefined) {
+                        // 빈 땅: 구매 시도
+                        if (player.money >= tileData.price) {
+                            this.startQuiz(player, tileData, 'buy');
+                        } else {
+                            this.log("돈이 부족해서 살 수 없어 ㅠㅠ");
+                            this.checkNextTurn();
+                        }
+                    } else if (tileData.owner !== player.id) {
+                        // 남의 땅: 통행료
+                        const owner = this.players[tileData.owner];
+                        this.log(`${owner.name} 친구 땅이야! 퀴즈 풀어볼까?`);
+                        this.startQuiz(player, tileData, 'toll', owner);
+                    } else {
+                        // 내 땅: 업그레이드 기회
+                        this.log("내 땅에 다시 왔어! 업그레이드 도전!");
+                        this.startQuiz(player, tileData, 'upgrade');
+                    }
+                } 
+                else if (tileData.type === 2) {
+                    this.handleGoldenKey(player);
+                }
+                else if (tileData.type === 3) {
+                    // 광야: 1회 휴식 (수정됨)
+                    player.skipTurn = 1;
+                    this.lastDiceDouble = false;
+                    this.showMessage("광야 도착 🌵", "광야에서 잠시 쉬어가요. (1번 휴식)", () => this.checkNextTurn());
+                }
+                else if (tileData.type === 4) {
+                    // 나눔: 기부 또는 획득 (수정됨)
+                    this.handleSharing(player, tileData);
+                }
+                else if (tileData.type === 5) {
+                    // 안식처: 칭찬 미션
+                    this.showMessage("안식처 🏕️", "모든 친구들에게 칭찬 한마디씩 해주세요! 💖", () => this.checkNextTurn());
+                }
+                else {
+                    this.checkNextTurn();
+                }
+                this.updatePlayerPanel();
+            }
+
+            handleSharing(player, tileData) {
+                if (!tileData.pot) tileData.pot = 0;
+
+                if (tileData.pot > 0) {
+                    const amount = tileData.pot;
+                    player.money += amount;
+                    tileData.pot = 0;
+                    this.updatePotDisplay(tileData.id, 0);
+                    this.showMessage("나눔 획득! 🎁", `와! 모금함에 있던 ${amount}달란트를 받았어!`, () => this.checkNextTurn());
+                } else {
+                    const donation = 100;
+                    player.money -= donation;
+                    tileData.pot = donation;
+                    this.updatePotDisplay(tileData.id, donation);
+                    this.showMessage("나눔 실천 💖", `다음 친구를 위해 ${donation}달란트를 모금함에 넣었어!`, () => this.checkNextTurn());
+                }
+            }
+
+            updatePotDisplay(tileId, amount) {
+                const tileEl = document.getElementById(`tile-${tileId}`);
+                const potEl = tileEl.querySelector('.pot-amount');
+                if (amount > 0) {
+                    potEl.innerText = amount;
+                    potEl.style.display = 'block';
+                } else {
+                    potEl.style.display = 'none';
+                }
+            }
+
+            handleGoldenKey(player) {
+                const keys = [
+                    { type: 'money', msg: "하늘에서 만나가 내려왔어! 🍞 (+200달란트)", val: 200 },
+                    { type: 'money', msg: "칭찬 스티커 보너스! ⭐ (+100달란트)", val: 100 },
+                    { type: 'money', msg: "어려운 친구를 도왔어 🤝 (-100달란트)", val: -100 },
+                    { type: 'move_unowned', msg: "주인 없는 땅으로 가볼까? 🚀" },
+                    { type: 'move_wilderness', msg: "광야로 가서 묵상하자... 🌵" }
+                ];
+                const pick = keys[Math.floor(Math.random() * keys.length)];
+                
+                if (pick.type === 'money') {
+                    player.money += pick.val;
+                    this.showMessage("황금열쇠 🗝️", pick.msg, () => this.checkNextTurn());
+                } else if (pick.type === 'move_unowned') {
+                    let targetIdx = -1;
+                    for (let i = 1; i < BOARD_SIZE; i++) {
+                        const checkIdx = (player.pos + i) % BOARD_SIZE;
+                        if (this.mapState[checkIdx].type === 1 && this.mapState[checkIdx].owner === undefined) {
+                            targetIdx = checkIdx;
+                            break;
+                        }
+                    }
+                    
+                    if (targetIdx !== -1) {
+                        this.showMessage("황금열쇠 🗝️", pick.msg, async () => {
+                            const tokenEl = document.getElementById(`token-${player.id}`);
+                            player.pos = targetIdx;
+                            this.updateTokenPosition(tokenEl, player.pos, player.id);
+                            this.playStepSound();
+                            this.handleTile(player);
+                        });
+                    } else {
+                        this.showMessage("황금열쇠 🗝️", "빈 땅이 없네! 출발점으로 갈게!", async () => {
+                            const tokenEl = document.getElementById(`token-${player.id}`);
+                            player.pos = 0;
+                            player.money += 500; 
+                            this.updateTokenPosition(tokenEl, 0, player.id);
+                            this.playStepSound();
+                            this.checkNextTurn();
+                        });
+                    }
+                } else if (pick.type === 'move_wilderness') {
+                    this.showMessage("황금열쇠 🗝️", pick.msg, async () => {
+                        const tokenEl = document.getElementById(`token-${player.id}`);
+                        player.pos = 5; 
+                        this.updateTokenPosition(tokenEl, player.pos, player.id);
+                        this.playStepSound();
+                        player.skipTurn = 1;
+                        this.lastDiceDouble = false;
+                        this.checkNextTurn();
+                    });
+                }
+            }
+
+            startQuiz(player, tileData, mode, owner = null) {
+                const modal = document.getElementById('quiz-modal');
+                const modalHeader = modal.querySelector('.modal-header'); // Get header
+                modalHeader.style.backgroundColor = player.color; // Set header color to player color
+
+                const qCat = document.getElementById('quiz-category');
+                const qCtx = document.getElementById('quiz-context');
+                const qText = document.getElementById('quiz-question');
+                const qOpts = document.getElementById('quiz-options');
+                
+                const category = tileData.category;
+                const difficulty = player.difficulty; // 플레이어 난이도 사용
+                const pool = quizDatabase[category][difficulty];
+                
+                let availableIndices = pool.map((_, i) => i).filter(i => !this.usedQuestions[category][difficulty].has(i));
+                
+                if (availableIndices.length === 0) {
+                    this.usedQuestions[category][difficulty].clear();
+                    availableIndices = pool.map((_, i) => i);
+                }
+
+                const randIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                this.usedQuestions[category][difficulty].add(randIdx);
+                const q = pool[randIdx];
+                const correctAnswer = q.a[q.c];
+
+                qCat.innerText = tileData.name;
+                qText.innerText = q.q;
+                
+                if (mode === 'buy') {
+                    qCtx.innerText = `[땅 사기] 퀴즈를 맞추면 내 땅이 돼! (비용: ${tileData.price})`;
+                } else if (mode === 'toll') {
+                    qCtx.innerText = `[통행료 내기] 맞추면 ${tileData.price}만 내고, 틀리면 2배야!`;
+                } else if (mode === 'upgrade') {
+                    qCtx.innerText = `[업그레이드] 맞추면 통행료가 1.5배로 올라가!`;
+                }
+
+                qOpts.innerHTML = '';
+                const answers = q.a.map((ans, i) => ({ text: ans, isCorrect: i === q.c }));
+                answers.sort(() => Math.random() - 0.5);
+
+                answers.forEach(ans => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-quiz';
+                    btn.innerText = ans.text;
+                    btn.onclick = () => {
+                        modal.style.display = 'none';
+                        this.resolveQuiz(player, tileData, mode, ans.isCorrect, owner, correctAnswer);
+                    };
+                    qOpts.appendChild(btn);
+                });
+
+                modal.style.display = 'flex';
+            }
+
+            resolveQuiz(player, tileData, mode, isCorrect, owner, correctAnswer) {
+                if (mode === 'buy') {
+                    if (isCorrect) {
+                        this.playCorrectSound();
+                        this.triggerConfetti();
+                        player.money -= tileData.price;
+                        tileData.owner = player.id;
+                        player.properties.push(tileData.id);
+                        
+                        const tileEl = document.getElementById(`tile-${tileData.id}`);
+                        tileEl.style.borderColor = player.color;
+                        tileEl.classList.remove('unowned');
+                        tileEl.classList.add('owned');
+                        
+                        this.showMessage("정답이야! 👏", `${tileData.name} 땅 주인이 되었어!`, () => this.checkAllLandsOwned());
+                    } else {
+                        this.playWrongSound();
+                        this.triggerShake();
+                        this.showMessage("땡! 아쉽다 😅", `틀렸어 ㅠㅠ 정답은 [${correctAnswer}]야.`, () => this.checkNextTurn());
+                    }
+                } else if (mode === 'toll') {
+                    let cost = tileData.price;
+                    if (isCorrect) {
+                        this.playCorrectSound();
+                        this.triggerConfetti();
+                        this.showMessage("정답! 👍", `잘했어! 통행료(${cost}달란트)만 낼게.`, () => {
+                            this.payToll(player, owner, cost);
+                        });
+                    } else {
+                        this.playWrongSound();
+                        this.triggerShake();
+                        cost *= 2;
+                        this.showMessage("땡! 😱", `틀렸어 ㅠㅠ 정답은 [${correctAnswer}]야. 벌금까지 2배(${cost}달란트)를 내야 해.`, () => {
+                            this.payToll(player, owner, cost);
+                        });
+                    }
+                } else if (mode === 'upgrade') {
+                    if (isCorrect) {
+                        this.playCorrectSound();
+                        this.triggerConfetti();
+                        tileData.price = Math.floor(tileData.price * 1.5);
+                        tileData.level = (tileData.level || 0) + 1; 
+                        
+                        const tileEl = document.getElementById(`tile-${tileData.id}`);
+                        const priceEl = tileEl.querySelector('.tile-price');
+                        priceEl.innerText = tileData.price;
+                        priceEl.style.backgroundColor = getTollColor(tileData.level);
+
+                        this.showMessage("업그레이드 성공! ✨", `이 땅의 통행료가 ${tileData.price}달란트로 올랐어!`, () => this.checkNextTurn());
+                    } else {
+                        this.playWrongSound();
+                        this.triggerShake();
+                        this.showMessage("아깝다! 😅", `틀렸어 ㅠㅠ 정답은 [${correctAnswer}]야. 업그레이드 실패!`, () => this.checkNextTurn());
+                    }
+                }
+            }
+
+            payToll(player, owner, amount) {
+                player.money -= amount;
+                owner.money += amount;
+                this.checkNextTurn();
+            }
+
+            checkAllLandsOwned() {
+                const totalBuyable = this.mapState.filter(t => t.type === 1).length;
+                const ownedCount = this.mapState.filter(t => t.type === 1 && t.owner !== undefined).length;
+
+                if (totalBuyable === ownedCount) {
+                    this.allLandsOwned = true;
+                    this.showMessage("마지막 라운드! 🚩", "모든 땅 주인이 정해졌어! 이제 누구든 출발점을 통과하면 게임이 끝나!", () => this.checkNextTurn());
+                } else {
+                    this.checkNextTurn();
+                }
+            }
+
+            endGame(winner) {
+                let msg = "🎉 와아! 게임 끝! 🎉\n\n";
+                if (winner) {
+                    msg += `최후의 생존자 [${winner.name}] 친구가 우승했어! 🏆`;
+                } else {
+                    let maxAssets = -99999;
+                    let bestPlayer = null;
+                    
+                    this.players.forEach(p => {
+                        if (p.isBankrupt) return;
+                        let assets = p.money;
+                        p.properties.forEach(tid => {
+                            assets += this.mapState[tid].price;
+                        });
+                        if (assets > maxAssets) {
+                            maxAssets = assets;
+                            bestPlayer = p;
+                        }
+                    });
+                    msg += `\n오늘의 1등은... [${bestPlayer.name}] 친구!! 축하해! 🏆`;
+                }
+                
+                alert(msg);
+                location.reload();
+            }
+
+            checkNextTurn() {
+                const player = this.players[this.currentPlayerIndex];
+                if (player.money < 0 && !player.isBankrupt) {
+                    player.isBankrupt = true;
+                    this.tiles.forEach((tileEl, idx) => {
+                        if (this.mapState[idx].owner === player.id) {
+                            this.mapState[idx].owner = undefined;
+                            tileEl.style.borderColor = "#ddd";
+                            tileEl.classList.remove('owned');
+                            tileEl.classList.add('unowned');
+                            tileEl.querySelector('.tile-owner').style.backgroundColor = 'transparent';
+                        }
+                    });
+                    
+                    const survivorCount = this.players.filter(p => !p.isBankrupt).length;
+                    if (survivorCount <= 1) {
+                        const winner = this.players.find(p => !p.isBankrupt);
+                        this.endGame(winner);
+                        return;
+                    }
+                    
+                    alert(`${player.name} 친구 파산! ㅠㅠ`);
+                }
+
+                if (this.lastDiceDouble && !player.isBankrupt) {
+                    this.log("더블이다! 한 번 더 굴려!");
+                    this.isProcessing = false;
+                    this.updatePlayerPanel(); 
+                } else {
+                    let nextIdx = (this.currentPlayerIndex + 1) % this.players.length;
+                    while (this.players[nextIdx].isBankrupt) {
+                        nextIdx = (nextIdx + 1) % this.players.length;
+                    }
+                    this.currentPlayerIndex = nextIdx;
+                    this.isProcessing = false;
+                    this.updateThemeColor();
+                    this.updatePlayerPanel();
+                }
+            }
+
+            showMessage(title, msg, callback) {
+                const modal = document.getElementById('action-modal');
+                document.getElementById('action-title').innerText = title;
+                document.getElementById('action-msg').innerText = msg;
+                const btn = document.getElementById('btn-confirm');
+                btn.onclick = () => {
+                    modal.style.display = 'none';
+                    if (callback) callback();
+                };
+                modal.style.display = 'flex';
+            }
+        }
+
+        let game;
+        let selectedPlayerCount = 0;
+
+        function setupNames(count) {
+            selectedPlayerCount = count;
+            document.getElementById('setup-step-1').style.display = 'none';
+            document.getElementById('setup-step-2').style.display = 'block';
+            
+            const container = document.getElementById('name-inputs-container');
+            container.innerHTML = '';
+            for(let i=1; i<=count; i++) {
+                const group = document.createElement('div');
+                group.className = 'player-input-group';
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'name-input';
+                input.placeholder = `친구 ${i} 이름`;
+                input.id = `input-name-${i}`;
+                input.value = `친구 ${i}`;
+                
+                const select = document.createElement('select');
+                select.className = 'level-select';
+                select.id = `input-level-${i}`;
+                select.innerHTML = `
+                    <option value="easy">하 (유치-초3)</option>
+                    <option value="medium">중 (초4-초6)</option>
+                    <option value="hard">상 (중고등)</option>
+                `;
+                
+                group.appendChild(input);
+                group.appendChild(select);
+                container.appendChild(group);
+            }
+        }
+
+        function startGameWithNames() {
+            const names = [];
+            const difficulties = [];
+            for(let i=1; i<=selectedPlayerCount; i++) {
+                const val = document.getElementById(`input-name-${i}`).value.trim();
+                const level = document.getElementById(`input-level-${i}`).value;
+                names.push(val || `친구 ${i}`);
+                difficulties.push(level);
+            }
+            
+            const setupScreen = document.getElementById('setup-screen');
+            const gameContainer = document.getElementById('game-container');
+
+            setupScreen.style.display = 'none';
+            gameContainer.style.display = 'flex';
+
+            game = new Game(names, difficulties);
+            game.initBoard();
+            
+            setTimeout(() => {
+                window.addEventListener('resize', () => {
+                    if(game) game.players.forEach(p => {
+                        const token = document.getElementById(`token-${p.id}`);
+                        if(token) game.updateTokenPosition(token, p.pos, p.id);
+                    });
+                });
+            }, 100);
+        }
+    </script>
+</body>
+</html>
